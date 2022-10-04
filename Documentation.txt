@@ -8,7 +8,6 @@ There will be 3 steps to this project:
     
     This step will be written in Python 3.
     - The user will input a Directory Path
-    - The program will loop through all the files and folders in that directory using Depth First Search (DFS) principles
     - The program will create a .txt file with the name of each file/folder, the permissions associated, and "ENTRY END\n" at the end of each new file/folder entry
     - Special Permissions will not be accounted for (Subject to Change)
    
@@ -22,7 +21,7 @@ Folder 2
 
 The .txt file may appear as such:
 
-Depth: 0
+Path: [Path]
 File: Folder 1
 Group: [Group 1]
 Permission: [Permission 1]
@@ -31,25 +30,25 @@ Group: [Group 2]
 Permission: [Permission 1]
 ENTRY END
 
-Depth: 1
+Path: [Path]
 File: File 1.1
 Group: [Group 1]
 Permission: [Permission 1]
 ENTRY END
 
-Depth: 1
+Path: [Path]
 File: File 1.2
 Group: [Group 1]
 Permission: [Permission 1]
 ENTRY END
 
-Depth: 0
+Path: [Path]
 File: Folder 2
 Group: [Group 1]
 Permission: [Permission 1]
 ENTRY END
 
-Depth: 1
+Path: [Path]
 File: File 2.1
 Group: [Group 1]
 Permission: [Permission 1]
