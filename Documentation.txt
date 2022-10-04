@@ -2,8 +2,6 @@ This project is to write a program in Python 3 to move files in a directory and
 their associated permissions to AWS Cloud.
 
 
-
-
 There will be 3 steps to this project:
 
   Step 1: Obtaining all the file names and permissions in a .txt file
@@ -20,11 +18,12 @@ Folder 1
   File 1.1
   File 1.2
 Folder 2
-  File 2.2
+  File 2.1
 
 The .txt file may appear as such:
 
-Folder: Folder 1
+Depth: 0
+File: Folder 1
 Group: [Group 1]
 Permission: [Permission 1]
 Permission: [Permission 2]
@@ -32,6 +31,36 @@ Group: [Group 2]
 Permission: [Permission 1]
 ENTRY END
 
+Depth: 1
+File: File 1.1
+Group: [Group 1]
+Permission: [Permission 1]
+ENTRY END
+
+Depth: 1
+File: File 1.2
+Group: [Group 1]
+Permission: [Permission 1]
+ENTRY END
+
+Depth: 0
+File: Folder 2
+Group: [Group 1]
+Permission: [Permission 1]
+ENTRY END
+
+Depth: 1
+File: File 2.1
+Group: [Group 1]
+Permission: [Permission 1]
+ENTRY END
+
 
   Step 2: Copying all the files to AWS Cloud
+    
+    This step will either be manual select all, copy, and paste to AWS Cloud or done with Python depending if the first method is possible/feasible.
+  
+  
   Step 3: Interpreting the .txt file from Step 1 and setting up the permissions in AWS Cloud accordingly
+    
+    This step will be done using Python 3.
