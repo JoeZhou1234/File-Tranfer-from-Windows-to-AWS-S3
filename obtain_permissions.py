@@ -15,3 +15,10 @@ def obtain_directory_path():
     global directory_path
     directory_path = input("Enter Directory Path: ")
 
+    
+def loop_through_files(path: str):
+    """
+    Given the directory path, this function loops through all the files and folders in the path
+    using Depth First Search principles
+    """
+    
