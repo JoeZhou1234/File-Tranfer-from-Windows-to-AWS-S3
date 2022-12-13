@@ -9,7 +9,7 @@ if __name__ == '__main__':
 
     # (For testing purposes)
     bucket_name = "joe-test-bucket"
-    directory_path = r"C:\Users\Joe\Test Sample"
+    directory_path = r"C:\Users\joe\Test Sample"
 
     # directory_path = get_permissions.obtain_directory_path()
     # if directory_path != "":
