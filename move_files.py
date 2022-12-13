@@ -5,15 +5,14 @@ The design is as described in the Flow Chart for Update 2.0 (subject to change).
 Note:
     Empty folders will NOT be uploaded to the bucket!
 """
+import json
+import logging
 import os
 import traceback
 import boto3
 import s3fs
 import win32security
-import json
-import logging
 from botocore.exceptions import ClientError
-
 
 s3 = boto3.resource("s3")
 s3_client = boto3.client("s3")
@@ -50,7 +49,7 @@ CONVENTIONAL_ACES = {
 }
 
 
-def move_local_to_s3(sub_directory_path: str, bucket_name: str):
+def move_local_to_s3(sub_directory_path: str, bucket_name: str ):
     """
     Moves all files and folders in sub_directory_path to the AWS S3 bucket bucket_name.
 
@@ -73,6 +72,8 @@ def move_local_to_s3(sub_directory_path: str, bucket_name: str):
 
     global bucket_directory_path
     bucket_directory_path = input("Enter the Bucket Directory Path corresponding to the bucket " + bucket_name + ": ")
+    file_extension = input("Enter the filter extension ('*' if no filter): ")
+    # file_extension = "txt"
 
     if not os.path.exists(bucket_directory_path):
         print("bucket directory path does not exist")
@@ -85,11 +86,11 @@ def move_local_to_s3(sub_directory_path: str, bucket_name: str):
         return None
 
     # All folders related to a file get automatically added when the file is added
-    if not os.path.isdir(sub_directory_path):
+    if (not os.path.isdir(sub_directory_path)) and (is_correct_extension(sub_directory_path, file_extension)):
         move_file_and_permissions(sub_directory_path, bucket_name)
         return None
 
-    move_all_files_and_permissions(sub_directory_path, bucket_name)
+    move_all_files_and_permissions(sub_directory_path, bucket_name, file_extension)
 
 
 def bucket_exists(bucket_name: str) -> bool:
@@ -119,7 +120,24 @@ def bucket_exists(bucket_name: str) -> bool:
             return False
 
 
-def move_all_files_and_permissions(directory_path: str, bucket_name: str):
+def is_correct_extension(path: str, file_extension: str) -> bool:
+    if file_extension == "*":
+        return True
+
+    # if file_extension.startswith("not"):
+    #     no_type = file_extension[4:]
+    #     no_type_list = no_type.split(", ")
+    #     if os.path.splitext(path)[-1][1:] not in no_type_list:
+    #         return True
+
+    type_list = file_extension.split(", ")
+    if os.path.splitext(path)[-1][1:] in type_list:
+        return True
+
+    return False
+
+
+def move_all_files_and_permissions(directory_path: str, bucket_name: str, file_extension: str):
     """
     Moves all files in directory_path to bucket_name and applies all permissions
     (recursively).
@@ -152,8 +170,9 @@ def move_all_files_and_permissions(directory_path: str, bucket_name: str):
     else:
         for file in all_files:
             file_path = os.path.join(directory_path, file)
-            move_file_and_permissions(file_path, bucket_name)
-            move_all_files_and_permissions(file_path, bucket_name)
+            if is_correct_extension(file_path, file_extension):
+                move_file_and_permissions(file_path, bucket_name)
+            move_all_files_and_permissions(file_path, bucket_name, file_extension)
 
 
 def move_file_and_permissions(file_path: str, bucket_name: str):
@@ -225,7 +244,6 @@ def check_file_security(file_path: str, bucket_name: str):
                 if type != 1:
                     is_user = False
             except:
-                name = switch_sid(sid)
                 is_user = False
 
             if CONVENTIONAL_ACES.get(ace_type, "OTHER") == "ALLOW":
@@ -361,4 +379,3 @@ def switch_permission(mask):
     else:
         result = 0
     return result
-
