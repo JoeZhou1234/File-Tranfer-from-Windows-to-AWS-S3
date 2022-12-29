@@ -1,6 +1,5 @@
 """
-This is for moving files from local to AWS S3 Bucket.
-The design is as described in the Flow Chart for Update 2.0 (subject to change).
+This is for moving files from Windows to AWS S3 Bucket.
 
 Note:
     Empty folders will NOT be uploaded to the bucket!
@@ -9,6 +8,8 @@ import json
 import logging
 import os
 import traceback
+from datetime import datetime
+
 import boto3
 import s3fs
 import win32security
@@ -18,6 +19,13 @@ s3 = boto3.resource("s3")
 s3_client = boto3.client("s3")
 s3_file = s3fs.S3FileSystem()
 iam = boto3.client('iam')
+
+# Create a folder called "logging"
+LOG_FILE = r"C:\Users\Joe\logging\logfile" + \
+           datetime.now().strftime('%Y_%m_%d_%H_%M_%S') + ".log"
+logging.basicConfig(filename=LOG_FILE, encoding='utf-8', filemode='w', format='%(asctime)s %(message)s',
+                    level=logging.INFO, datefmt='%d/%m/%Y %I:%M:%S %p:')
+logging.info("[Script: <font color=""blue"">" + os.path.realpath(__file__) + "</font>]")
 
 # AWS_ACCESS_KEY_ID =
 # AWS_SECRET_ACCESS_KEY =
@@ -49,15 +57,15 @@ CONVENTIONAL_ACES = {
 }
 
 
-def move_local_to_s3(sub_directory_path: str, bucket_name: str ):
+def move_local_to_s3(sub_directory_path: str, bucket_name: str):
     """
     Moves all files and folders in sub_directory_path to the AWS S3 bucket bucket_name.
 
-    Calls [bucket_exists(), move_all_files_and_permissions()]
+    Calls [bucket_exists(), is_correct_extension(), move_file_and_permissions(), move_all_files_and_permissions()]
     in order (only this function will be called directly in main.py).
 
-    - sub_directory_path must be a valid path in local directory UNDER bucket_directory_path
-    (i.e. the folder at bucket_directory_path must contain sub_directory_path)
+    - sub_directory_path must be a valid path in local directory UNDER or EQUAL TO bucket_directory_path
+    (i.e. the folder at bucket_directory_path must contain or be the same as sub_directory_path)
     - bucket_directory_path corresponds to the S3 bucket bucket_name
     - bucket_name must lead to an existing bucket in AWS S3
     - permissions will be applied to the AWS S3 bucket bucket_name to match the
@@ -65,32 +73,51 @@ def move_local_to_s3(sub_directory_path: str, bucket_name: str ):
     """
     if not os.path.exists(sub_directory_path):
         print("directory path does not exist")
+        logging.error("ERROR: The path: " + sub_directory_path + " cannot be found or does not exist")
+        logging.info("INFO:  The program was terminated")
         return None
+
     if not bucket_exists(bucket_name):
         print("bucket does not exist")
+        logging.error("ERROR: The bucket " + bucket_name + " cannot be found or does not exist")
+        logging.info("INFO:  The program was terminated")
         return None
 
     global bucket_directory_path
     bucket_directory_path = input("Enter the Bucket Directory Path corresponding to the bucket " + bucket_name + ": ")
+    logging.info("INFO:  The directory path corresponding to the bucket: " + bucket_name +
+                 " was set to: " + bucket_directory_path)
+
     file_extension = input("Enter the filter extension ('*' if no filter): ")
-    # file_extension = "txt"
+    logging.info("INFO:  The filter was set to: " + file_extension)
 
     if not os.path.exists(bucket_directory_path):
         print("bucket directory path does not exist")
+        logging.error("ERROR: The path: " + bucket_directory_path + " cannot be found or does not exist")
+        logging.info("INFO:  The program was terminated")
         return None
+
     if not os.path.isdir(bucket_directory_path):
         print("Bucket Directory Path is not a directory path")
+        logging.error("ERROR: The path: " + bucket_directory_path + " is not a directory path")
+        logging.info("INFO:  The program was terminated")
         return None
+
     if bucket_directory_path not in sub_directory_path:
         print("File/Folder not found in Bucket Directory Path. Please move the file/folder to " + bucket_directory_path)
+        logging.error("ERROR: The path: " + sub_directory_path + " could not be located in the path: "
+                      + bucket_directory_path)
+        logging.info("INFO:  The program was terminated")
         return None
 
     # All folders related to a file get automatically added when the file is added
     if (not os.path.isdir(sub_directory_path)) and (is_correct_extension(sub_directory_path, file_extension)):
         move_file_and_permissions(sub_directory_path, bucket_name)
+        logging.info("INFO:  The program ran successfully")
         return None
 
     move_all_files_and_permissions(sub_directory_path, bucket_name, file_extension)
+    logging.info("INFO:  The program ran successfully")
 
 
 def bucket_exists(bucket_name: str) -> bool:
@@ -102,6 +129,7 @@ def bucket_exists(bucket_name: str) -> bool:
     """
     try:
         s3.meta.client.head_bucket(Bucket=bucket_name)
+        logging.info("INFO:  The bucket: " + bucket_name + " was found")
         return True
     except ClientError as e:
         # If a client error is thrown, then check that it was a 404 error.
@@ -111,16 +139,23 @@ def bucket_exists(bucket_name: str) -> bool:
         if error_code == 403:
             # if the permission is denied pretend the bucket does not exist to prevent errors later on
             print("403 Permission Denied")
+            logging.error("ERROR: Permission denied for the bucket: " + bucket_name)
             return False
         elif error_code == 404:
             print("404 Does not exist")
+            logging.error("ERROR: The bucket: " + bucket_name + " cannot be found or does not exist")
             return False
         else:
             print("Some other error")
+            logging.error("ERROR: Unknown error while searching for the bucket: " + bucket_name)
             return False
 
 
 def is_correct_extension(path: str, file_extension: str) -> bool:
+    """
+    Returns True if the file at path matches the filter: file_extension.
+    Returns False otherwise.
+    """
     if file_extension == "*":
         return True
 
@@ -142,7 +177,7 @@ def move_all_files_and_permissions(directory_path: str, bucket_name: str, file_e
     Moves all files in directory_path to bucket_name and applies all permissions
     (recursively).
 
-    Calls [move_file_and_permissions()] in order.
+    Calls [is_correct_extension(), move_file_and_permissions(), move_all_files_and_permissions()] in order.
 
     - Not including the folder at directory_path
     """
@@ -180,7 +215,7 @@ def move_file_and_permissions(file_path: str, bucket_name: str):
     Moves the file in file_path to the AWS S3 bucket bucket_name while preserving
     the directory structure outlined in file_path, then calls check_file_security().
 
-    Calls [check_file_security()] in order.
+    Calls [get_s3_path(), check_file_security()] in order.
 
     - if file_path leads to an empty folder, S3 will automatically NOT add the folder so a log will be printed,
     but no exceptions will be raised
@@ -219,6 +254,9 @@ def check_file_security(file_path: str, bucket_name: str):
     Checks and modifies all permissions in corresponding file in bucket_name to match permissions in
     file_path (recursively for each user/group in file_path).
 
+    Calls [switch_sid(), create_user(), create_group(), get_policy(), create_inline_policy(), switch_permission(),
+    update_inline_policy()] in order.
+
     - ignores and logs/raises an exception to all users and groups in file_path,
     but not in bucket_name
     """
@@ -244,6 +282,7 @@ def check_file_security(file_path: str, bucket_name: str):
                 if type != 1:
                     is_user = False
             except:
+                name = switch_sid(sid)
                 is_user = False
 
             if CONVENTIONAL_ACES.get(ace_type, "OTHER") == "ALLOW":
@@ -253,11 +292,8 @@ def check_file_security(file_path: str, bucket_name: str):
                 try:
                     iam.get_user(UserName=name)
                 except:
-                    if_create = input("Create user of not[Y/N]: ")
-                    if if_create == "Y":
-                        create_user(name)
-                    else:
-                        user_exists = False
+                    create_user(name)
+
             elif policy:
                 try:
                     iam.get_group(GroupName=name)
@@ -281,6 +317,8 @@ def check_file_security(file_path: str, bucket_name: str):
     except:
         print(traceback.format_exc())
 
+
+# All the following functions below are helper functions related to the IAM User\Group Inline Policies
 
 def create_user(user_name: str):
     result = iam.create_user(UserName=user_name)
@@ -342,6 +380,10 @@ def create_inline_policy(user_name: str, bucket_name: str, is_user: bool):
 
 
 def update_inline_policy(user_name: str, file_path: str, bucket_name: str, permission: int, is_user: bool):
+    """
+    Calls [get_policy()] in order.
+    """
+
     object_path = file_path.replace(bucket_directory_path, "")
     object_name = object_path.replace("\\", "/")
     original = get_policy(user_name, is_user)["PolicyDocument"]
@@ -379,3 +421,16 @@ def switch_permission(mask):
     else:
         result = 0
     return result
+
+
+def switch_sid(sid):
+    """
+    Put group names here with their sid in the format:
+    [sid]: [group name]
+    """
+    sid_str = win32security.ConvertSidToStringSid(sid)
+    return {
+        "some sid0": "JoeGroup0",
+        "some sid1": "JoeGroup1",
+        "some sid2": "JoeGroup2"
+    }.get(sid_str, "Cannot_Identified")
